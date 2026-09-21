@@ -1,0 +1,23 @@
+# secrets
+.env
+*.pem
+
+# node
+node_modules/
+dist/
+npm-debug.log*
+
+# go
+api-go/api
+api-go/*.exe
+api-go/todomark.db
+api-go/*.db
+
+# sqlite / runtime data
+*.db
+*.sqlite
+*.sqlite3
+
+# editor / os
+.DS_Store
+.vscode/
