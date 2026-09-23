@@ -1,0 +1,210 @@
+{
+  "uid": "todomark-executive",
+  "title": "TodoMark — Ejecutivo (ClickHouse)",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 5,
+  "refresh": "30s",
+  "time": { "from": "now-90d", "to": "now" },
+  "panels": [
+    {
+      "id": 1, "type": "stat", "title": "Tickets totales",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "grafana-clickhouse-datasource" },
+      "targets": [
+        { "refId": "A", "queryType": "sql", "format": 1,
+          "rawSql": "SELECT count() AS TicketsTotales FROM fact_tickets",
+          "datasource": { "type": "grafana-clickhouse-datasource" } }
+      ]
+    },
+    {
+      "id": 2, "type": "stat", "title": "Tickets abiertos",
+      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "grafana-clickhouse-datasource" },
+      "targets": [
+        { "refId": "A", "queryType": "sql", "format": 1,
+          "rawSql": "SELECT count() AS Abiertos FROM fact_tickets WHERE Status IN ('open','in_progress','reopened')",
+          "datasource": { "type": "grafana-clickhouse-datasource" } }
+      ]
+    },
+    {
+      "id": 3, "type": "stat", "title": "MTTR global (horas)",
+      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "grafana-clickhouse-datasource" },
+      "fieldConfig": { "defaults": { "decimals": 1 }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "queryType": "sql", "format": 1,
+          "rawSql": "SELECT avgIf((toUnixTimestamp(ClosedAt) - toUnixTimestamp(CreatedAt)) / 3600, ClosedAt IS NOT NULL) AS MTTRHoras FROM fact_tickets",
+          "datasource": { "type": "grafana-clickhouse-datasource" } }
+      ]
+    },
+    {
+      "id": 4, "type": "stat", "title": "CSAT promedio (1-5)",
+      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "grafana-clickhouse-datasource" },
+      "fieldConfig": { "defaults": { "decimals": 1 }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "queryType": "sql", "format": 1,
+          "rawSql": "SELECT CSATAvg FROM v_csat",
+          "datasource": { "type": "grafana-clickhouse-datasource" } }
+      ]
+    },
+    {
+      "id": 5, "type": "piechart", "title": "Por estado",
+      "gridPos": { "x": 0, "y": 4, "w": 6, "h": 8 },
+      "datasource": { "type": "grafana-clickhouse-datasource" },
+      "options": {
+        "pieType": "donut",
+        "displayLabels": ["name", "percent"],
+        "legend": { "displayMode": "list", "placement": "bottom", "values": ["value"] },
+        "reduceOptions": { "calcs": [], "values": true, "fields": "" }
+      },
+      "targets": [
+        { "refId": "A", "queryType": "sql", "format": 1,
+          "rawSql": "SELECT Status, Tickets FROM v_tickets_by_status ORDER BY Tickets DESC",
+          "datasource": { "type": "grafana-clickhouse-datasource" } }
+      ]
+    },
+    {
+      "id": 6, "type": "piechart", "title": "Por prioridad",
+      "gridPos": { "x": 6, "y": 4, "w": 6, "h": 8 },
+      "datasource": { "type": "grafana-clickhouse-datasource" },
+      "options": {
+        "pieType": "donut",
+        "displayLabels": ["name", "percent"],
+        "legend": { "displayMode": "list", "placement": "bottom", "values": ["value"] },
+        "reduceOptions": { "calcs": [], "values": true, "fields": "" }
+      },
+      "targets": [
+        { "refId": "A", "queryType": "sql", "format": 1,
+          "rawSql": "SELECT Priority, Tickets FROM v_tickets_by_priority ORDER BY Tickets DESC",
+          "datasource": { "type": "grafana-clickhouse-datasource" } }
+      ]
+    },
+    {
+      "id": 7, "type": "piechart", "title": "Por canal",
+      "gridPos": { "x": 12, "y": 4, "w": 6, "h": 8 },
+      "datasource": { "type": "grafana-clickhouse-datasource" },
+      "options": {
+        "pieType": "pie",
+        "displayLabels": ["name", "percent"],
+        "legend": { "displayMode": "list", "placement": "bottom", "values": ["value"] },
+        "reduceOptions": { "calcs": [], "values": true, "fields": "" }
+      },
+      "targets": [
+        { "refId": "A", "queryType": "sql", "format": 1,
+          "rawSql": "SELECT Channel, Tickets FROM v_tickets_by_channel ORDER BY Tickets DESC",
+          "datasource": { "type": "grafana-clickhouse-datasource" } }
+      ]
+    },
+    {
+      "id": 8, "type": "piechart", "title": "Por categoría",
+      "gridPos": { "x": 18, "y": 4, "w": 6, "h": 8 },
+      "datasource": { "type": "grafana-clickhouse-datasource" },
+      "options": {
+        "pieType": "pie",
+        "displayLabels": ["name", "percent"],
+        "legend": { "displayMode": "list", "placement": "bottom", "values": ["value"] },
+        "reduceOptions": { "calcs": [], "values": true, "fields": "" }
+      },
+      "targets": [
+        { "refId": "A", "queryType": "sql", "format": 1,
+          "rawSql": "SELECT Category, Tickets FROM v_tickets_by_category ORDER BY Tickets DESC",
+          "datasource": { "type": "grafana-clickhouse-datasource" } }
+      ]
+    },
+    {
+      "id": 9, "type": "table", "title": "Top edificios (demo) — volumen y MTTR",
+      "gridPos": { "x": 0, "y": 12, "w": 12, "h": 8 },
+      "datasource": { "type": "grafana-clickhouse-datasource" },
+      "fieldConfig": { "defaults": { "decimals": 1 }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "queryType": "sql", "format": 1,
+          "rawSql": "SELECT BuildingID, Tickets, AvgResolutionHours FROM v_tickets_by_building ORDER BY Tickets DESC",
+          "datasource": { "type": "grafana-clickhouse-datasource" } }
+      ]
+    },
+    {
+      "id": 10, "type": "timeseries", "title": "Tendencia semanal (creados vs cerrados)",
+      "gridPos": { "x": 12, "y": 12, "w": 12, "h": 8 },
+      "datasource": { "type": "grafana-clickhouse-datasource" },
+      "targets": [
+        { "refId": "A", "queryType": "sql", "format": 0,
+          "rawSql": "SELECT Week AS time, Created, Closed FROM v_weekly_trend ORDER BY Week",
+          "datasource": { "type": "grafana-clickhouse-datasource" } }
+      ]
+    },
+    {
+      "id": 11, "type": "barchart", "title": "MTTR por prioridad",
+      "gridPos": { "x": 0, "y": 20, "w": 6, "h": 8 },
+      "datasource": { "type": "grafana-clickhouse-datasource" },
+      "fieldConfig": { "defaults": { "decimals": 1 }, "overrides": [] },
+      "options": { "orientation": "horizontal", "legend": { "showLegend": false } },
+      "targets": [
+        { "refId": "A", "queryType": "sql", "format": 1,
+          "rawSql": "SELECT Priority, MTTRHours FROM v_mttr_by_priority ORDER BY MTTRHours DESC",
+          "datasource": { "type": "grafana-clickhouse-datasource" } }
+      ]
+    },
+    {
+      "id": 12, "type": "barchart", "title": "Aging por estado (horas, proxy)",
+      "gridPos": { "x": 6, "y": 20, "w": 6, "h": 8 },
+      "datasource": { "type": "grafana-clickhouse-datasource" },
+      "fieldConfig": { "defaults": { "decimals": 1 }, "overrides": [] },
+      "options": { "orientation": "horizontal", "legend": { "showLegend": false } },
+      "targets": [
+        { "refId": "A", "queryType": "sql", "format": 1,
+          "rawSql": "SELECT Status, AgingHours FROM v_aging_by_status ORDER BY AgingHours DESC",
+          "datasource": { "type": "grafana-clickhouse-datasource" } }
+      ]
+    },
+    {
+      "id": 13, "type": "barchart", "title": "Distribución CSAT (1-5)",
+      "gridPos": { "x": 12, "y": 20, "w": 6, "h": 8 },
+      "datasource": { "type": "grafana-clickhouse-datasource" },
+      "options": { "legend": { "showLegend": false } },
+      "targets": [
+        { "refId": "A", "queryType": "sql", "format": 1,
+          "rawSql": "SELECT toString(SatisfactionScore) AS Estrellas, Tickets FROM v_csat_distribution ORDER BY SatisfactionScore",
+          "datasource": { "type": "grafana-clickhouse-datasource" } }
+      ]
+    },
+    {
+      "id": 14, "type": "piechart", "title": "Tickets por tier de edificio (demo)",
+      "gridPos": { "x": 18, "y": 20, "w": 6, "h": 8 },
+      "datasource": { "type": "grafana-clickhouse-datasource" },
+      "options": {
+        "pieType": "donut",
+        "displayLabels": ["name", "percent"],
+        "legend": { "displayMode": "list", "placement": "bottom", "values": ["value"] },
+        "reduceOptions": { "calcs": [], "values": true, "fields": "" }
+      },
+      "targets": [
+        { "refId": "A", "queryType": "sql", "format": 1,
+          "rawSql": "SELECT Tier, Tickets FROM v_tickets_by_tier ORDER BY Tickets DESC",
+          "datasource": { "type": "grafana-clickhouse-datasource" } }
+      ]
+    },
+    {
+      "id": 15, "type": "timeseries", "title": "Reaperturas por semana",
+      "gridPos": { "x": 0, "y": 28, "w": 12, "h": 8 },
+      "datasource": { "type": "grafana-clickhouse-datasource" },
+      "targets": [
+        { "refId": "A", "queryType": "sql", "format": 0,
+          "rawSql": "SELECT Week AS time, Reopens FROM v_reopens_weekly ORDER BY Week",
+          "datasource": { "type": "grafana-clickhouse-datasource" } }
+      ]
+    },
+    {
+      "id": 16, "type": "histogram", "title": "Distribución de tiempo de resolución (horas)",
+      "gridPos": { "x": 12, "y": 28, "w": 12, "h": 8 },
+      "datasource": { "type": "grafana-clickhouse-datasource" },
+      "options": { "legend": { "showLegend": false } },
+      "targets": [
+        { "refId": "A", "queryType": "sql", "format": 1,
+          "rawSql": "SELECT ResolutionHours FROM v_resolution_hours",
+          "datasource": { "type": "grafana-clickhouse-datasource" } }
+      ]
+    }
+  ]
+}

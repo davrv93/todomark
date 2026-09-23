@@ -22,7 +22,7 @@ var Priorities = map[string]bool{
 	"low": true, "medium": true, "high": true, "critical": true,
 }
 
-func ValidStatus(s string) bool { return Statuses[s] }
+func ValidStatus(s string) bool   { return Statuses[s] }
 func ValidPriority(p string) bool { return Priorities[p] }
 
 func AllowedTransition(from, to string) bool {

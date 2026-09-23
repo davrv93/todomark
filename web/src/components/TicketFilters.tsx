@@ -20,7 +20,7 @@ const TicketFilters: React.FC<Props> = ({ filters, onChange }) => {
 
   return (
     <div className="filters-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+      <div className="filters-pills" style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
         {STATUS_OPTIONS.map((opt) => (
           <button
             key={opt.value || 'all'}
@@ -36,11 +36,10 @@ const TicketFilters: React.FC<Props> = ({ filters, onChange }) => {
         <input
           type="text"
           name="query"
-          className="input"
+          className="input search-input"
           placeholder="Buscar por título o solicitante"
           value={filters.query ?? ''}
           onChange={(e) => onChange({ query: e.target.value })}
-          style={{ width: 220 }}
         />
         <select name="priority" className="select" value={filters.priority ?? ''} onChange={handleSelect} style={{ width: 140 }}>
           <option value="">Toda prioridad</option>

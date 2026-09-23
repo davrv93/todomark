@@ -6,10 +6,16 @@ export interface Ticket {
   priority: Priority;
   requester: string;
   assignedTo: string | null;
+  email: string | null;
+  assignedTeam: string | null;
+  closedAt: string | null;
   createdAt: string; // ISO string
   updatedAt: string;
   history: TicketEvent[];
   whatsappChatId: string | null;
+  remoteId: string | null;
+  lastSyncAt: string | null;
+  remoteUpdatedAt: string | null;
 }
 
 export type TicketStatus =

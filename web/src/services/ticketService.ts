@@ -1,6 +1,6 @@
 import { Ticket, TicketStatus, Priority } from '../models/Ticket';
 
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8081';
+export const API_URL = (window as any).__ENV?.VITE_API_URL || import.meta.env.VITE_API_URL || 'http://localhost:8081';
 
 async function http<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
@@ -14,6 +14,42 @@ async function http<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export type TicketFilters = { status?: TicketStatus; priority?: Priority; query?: string };
+export type WeeklyBucket = { weekStart: string; created: number; closed: number };
+export type Building = { id: string; name: string; tier: string };
+export type Attachment = { id: string; ticketId: string; kind: 'photo' | 'audio'; mimeType: string; fileName: string; transcript: string | null; source: string; createdAt: string };
+export type BuildingStat = { buildingId: string; name: string; tier: string; count: number; avgResolutionHours: number | null };
+export type CategoryByBuilding = { buildingId: string; buildingName: string; category: string; count: number };
+export type ReportSummary = {
+  byStatus: Record<string, number>;
+  byPriority: Record<string, number>;
+  byChannel: Record<string, number>;
+  byAgent: Record<string, number>;
+  byCategory: Record<string, number>;
+  dailyTickets: Record<string, number>;
+  averageResolutionHours: number | null;
+  agingHoursByStatus: Record<string, number>;
+  unassignedCount: number;
+  unassignedOldestHours: number | null;
+  reopensToday: number;
+  slaAtRiskCount: number;
+  slaOverdueCount: number;
+  frtHours: number | null;
+  weeklyBacklog: WeeklyBucket[];
+  byBuilding: BuildingStat[];
+  categoryByBuilding: CategoryByBuilding[];
+};
+export type ExecutiveSummary = {
+  openNow: number;
+  netChange7d: number;
+  mttrHours: number | null;
+  reopenRatePct: number | null;
+  csatAvg: number | null;
+  slaCompliancePct: number | null;
+  weeklyTrend: WeeklyBucket[];
+  costEstimateDemo: number | null;
+  landingVisits: number;
+  leadsTotal: number;
+};
 
 function qs(filters: TicketFilters): string {
   const params = new URLSearchParams();
@@ -27,8 +63,14 @@ function qs(filters: TicketFilters): string {
 export const ticketService = {
   getAll: (filters: TicketFilters = {}) => http<Ticket[]>(`/api/tickets${qs(filters)}`),
   getById: (id: string) => http<Ticket>(`/api/tickets/${id}`),
-  create: (data: Pick<Ticket, 'title' | 'description' | 'priority' | 'requester'> & { assignedTo?: string | null }) =>
+  getByEmail: (email: string) => http<Ticket[]>(`/api/tickets/email/${encodeURIComponent(email)}`),
+  getByTeam: (team: string) => http<Ticket[]>(`/api/tickets/team/${encodeURIComponent(team)}`),
+  getReportSummary: () => http<ReportSummary>('/api/reports/summary'),
+  getExecutiveSummary: () => http<ExecutiveSummary>('/api/reports/executive'),
+  create: (data: Pick<Ticket, 'title' | 'description' | 'priority' | 'requester'> & { assignedTo?: string | null; email?: string | null; assignedTeam?: string | null; category?: string | null; buildingId?: string | null; unitId?: string | null }) =>
     http<Ticket>('/api/tickets', { method: 'POST', body: JSON.stringify(data) }),
+  getBuildings: () => http<Building[]>('/api/buildings'),
+  getAttachments: (ticketId: string) => http<Attachment[]>(`/api/attachments?ticketId=${encodeURIComponent(ticketId)}`),
   update: (id: string, data: Partial<Omit<Ticket, 'id' | 'createdAt' | 'history'>>) =>
     http<Ticket>(`/api/tickets/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string) => http<void>(`/api/tickets/${id}`, { method: 'DELETE' }),

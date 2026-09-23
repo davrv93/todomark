@@ -1,0 +1,3 @@
+ALTER TABLE tickets ADD COLUMN email TEXT;
+ALTER TABLE tickets ADD COLUMN assigned_team TEXT;
+ALTER TABLE tickets ADD COLUMN closed_at DATETIME;

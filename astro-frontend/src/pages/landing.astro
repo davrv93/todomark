@@ -1,0 +1,632 @@
+---
+import LiveBadge from '../components/LiveBadge';
+import '../styles/theme.css';
+
+// CMS (Directus): el fetch ya NO corre acá (build time) — corría una sola vez al construir
+// la imagen, así que editar contenido en Directus no se reflejaba sin rebuild --no-cache
+// (deuda anotada en PLAN.md §20.6). Ahora el contenido se pinta con el fallback de abajo en el
+// HTML servido (primer paint + SEO + sin JS), y el <script> al final de la página lo reemplaza
+// en el cliente con lo que haya en Directus en ESE momento — siempre fresco, sin caché que romper,
+// mismo patrón que ya usan Kanban/Reportes (fetch en el navegador, no en build).
+const t = (_key: string, fallback: string) => fallback;
+---
+
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TodoMark — ERP sobre JSR</title>
+    <meta
+      name="description"
+      content="TodoMark: el ERP construido sobre JSR. Integración total, escalabilidad, UX Apple-like, automatización y soporte 24/7."
+    />
+    <script is:inline src="/config.js"></script>
+  </head>
+  <body class="landing-body">
+    <header class="landing-nav">
+      <div class="landing-nav-inner">
+        <span class="landing-logo">TodoMark</span>
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <LiveBadge client:load />
+          <a href="#lead-form" class="btn btn-primary">Solicitar demo</a>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="landing-hero">
+        <div class="landing-hero-inner">
+          <h1 data-cms-key="hero_title">{t('hero_title', 'El ERP construido sobre JSR para equipos que no quieren perder tiempo')}</h1>
+          <p class="landing-hero-sub" data-cms-key="hero_subtitle">
+            {t('hero_subtitle', 'TodoMark centraliza tickets, soporte y automatización en una sola plataforma, con integración total de JSR y una experiencia pensada para que tu equipo la use sin fricción desde el primer día.')}
+          </p>
+          <a href="#lead-form" class="btn btn-primary landing-hero-cta">Solicitar demo</a>
+        </div>
+      </section>
+
+      <section class="landing-section" aria-labelledby="benefits-heading">
+        <h2 id="benefits-heading">Por qué elegir TodoMark</h2>
+        <div class="landing-grid-5">
+          <article class="card landing-benefit">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M9 3v4M15 3v4M6 7h12l-1 5a5 5 0 0 1-10 0L6 7Z" />
+              <path d="M10 17v2a2 2 0 0 0 4 0v-2" />
+            </svg>
+            <h3 data-cms-key="benefit_1_title">{t('benefit_1_title', 'Integración total con JSR')}</h3>
+            <p data-cms-key="benefit_1_body">{t('benefit_1_body', 'TodoMark se conecta de forma nativa con tu ecosistema JSR, sin capas intermedias ni sincronizaciones manuales.')}</p>
+          </article>
+          <article class="card landing-benefit">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M4 19h16" />
+              <rect x="6" y="12" width="3" height="7" />
+              <rect x="11" y="8" width="3" height="11" />
+              <rect x="16" y="4" width="3" height="15" />
+            </svg>
+            <h3 data-cms-key="benefit_2_title">{t('benefit_2_title', 'Escalabilidad')}</h3>
+            <p data-cms-key="benefit_2_body">{t('benefit_2_body', 'Crece de un equipo a toda la organización sin rediseñar procesos ni migrar de plataforma.')}</p>
+          </article>
+          <article class="card landing-benefit">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M5 3l14 8-6 2-2 6-6-16Z" />
+            </svg>
+            <h3 data-cms-key="benefit_3_title">{t('benefit_3_title', 'UX Apple-like')}</h3>
+            <p data-cms-key="benefit_3_body">{t('benefit_3_body', 'Interfaz cuidada, rápida y directa: tu equipo la aprende en minutos, no en semanas de capacitación.')}</p>
+          </article>
+          <article class="card landing-benefit">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19 12a7 7 0 0 0-.2-1.6l2-1.5-2-3.4-2.3.9a7 7 0 0 0-2.8-1.6L13.3 2h-2.6l-.4 2.8a7 7 0 0 0-2.8 1.6l-2.3-.9-2 3.4 2 1.5A7 7 0 0 0 5 12a7 7 0 0 0 .2 1.6l-2 1.5 2 3.4 2.3-.9a7 7 0 0 0 2.8 1.6l.4 2.8h2.6l.4-2.8a7 7 0 0 0 2.8-1.6l2.3.9 2-3.4-2-1.5A7 7 0 0 0 19 12Z" />
+            </svg>
+            <h3 data-cms-key="benefit_4_title">{t('benefit_4_title', 'Automatización')}</h3>
+            <p data-cms-key="benefit_4_body">{t('benefit_4_body', 'Reglas y transiciones automáticas de tickets liberan a tu equipo del trabajo repetitivo.')}</p>
+          </article>
+          <article class="card landing-benefit">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 7v5l3.5 2" />
+            </svg>
+            <h3 data-cms-key="benefit_5_title">{t('benefit_5_title', 'Soporte 24/7')}</h3>
+            <p data-cms-key="benefit_5_body">{t('benefit_5_body', 'Un equipo humano disponible a toda hora, respaldado por el asistente virtual de TodoMark.')}</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="landing-section" aria-labelledby="cases-heading">
+        <h2 id="cases-heading">Casos de éxito</h2>
+        <div class="landing-grid-3">
+          <blockquote class="card landing-testimonial">
+            <p>“[TESTIMONIO PENDIENTE]”</p>
+            <footer>— [Nombre], [Cargo] en [Empresa]</footer>
+          </blockquote>
+          <blockquote class="card landing-testimonial">
+            <p>“[TESTIMONIO PENDIENTE]”</p>
+            <footer>— [Nombre], [Cargo] en [Empresa]</footer>
+          </blockquote>
+          <blockquote class="card landing-testimonial">
+            <p>“[TESTIMONIO PENDIENTE]”</p>
+            <footer>— [Nombre], [Cargo] en [Empresa]</footer>
+          </blockquote>
+        </div>
+      </section>
+
+      <section class="landing-section" aria-labelledby="features-heading">
+        <h2 id="features-heading">Características</h2>
+        <p class="muted">Comparación de ejemplo, contenido ilustrativo.</p>
+        <div class="table-wrap">
+          <table class="ticket-table landing-compare-table">
+            <thead>
+              <tr>
+                <th scope="col">Característica</th>
+                <th scope="col">TodoMark (JSR)</th>
+                <th scope="col">Competidor genérico</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Tiempo de implementación</td>
+                <td>1–2 semanas</td>
+                <td>2–3 meses</td>
+              </tr>
+              <tr>
+                <td>Soporte en español 24/7</td>
+                <td>Incluido</td>
+                <td>Plan adicional de pago</td>
+              </tr>
+              <tr>
+                <td>Automatización de flujos</td>
+                <td>Nativa</td>
+                <td>Requiere integraciones externas</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="landing-section" aria-labelledby="demo-heading">
+        <h2 id="demo-heading">Ve TodoMark en acción</h2>
+        <div class="landing-video-placeholder">
+          <span>[VIDEO DEMO PENDIENTE]</span>
+        </div>
+      </section>
+
+      <section class="landing-section" id="lead-form-section" aria-labelledby="lead-heading">
+        <h2 id="lead-heading">Solicitar demo</h2>
+        <form id="lead-form" class="card form-card" novalidate>
+          <div class="field">
+            <label for="lead-name">Nombre</label>
+            <input class="input" type="text" id="lead-name" name="name" autocomplete="name" required />
+          </div>
+          <div class="field">
+            <label for="lead-email">Email</label>
+            <input class="input" type="email" id="lead-email" name="email" autocomplete="email" required />
+          </div>
+          <div class="field">
+            <label for="lead-company">Empresa</label>
+            <input class="input" type="text" id="lead-company" name="company" autocomplete="organization" />
+          </div>
+          <button type="submit" class="btn btn-primary" id="lead-submit">Enviar</button>
+          <p id="lead-status" role="status" aria-live="polite"></p>
+        </form>
+      </section>
+    </main>
+
+    <button
+      type="button"
+      id="chat-toggle"
+      class="landing-chat-toggle btn btn-primary"
+      aria-haspopup="dialog"
+      aria-controls="chat-modal"
+      aria-expanded="false"
+      aria-label="Abrir asistente TodoMark"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="10" />
+        <path d="M9.1 9a2.9 2.9 0 0 1 5.7.6c0 1.9-2.4 2-2.4 3.6" />
+        <path d="M12 17.5h.01" />
+      </svg>
+    </button>
+
+    <div id="chat-modal" class="landing-chat-modal" role="dialog" aria-modal="true" aria-labelledby="chat-title" hidden>
+      <div class="card landing-chat-panel">
+        <div class="landing-chat-header">
+          <h2 id="chat-title">Asistente TodoMark</h2>
+          <button type="button" id="chat-close" class="btn-ghost" aria-label="Cerrar chat">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        </div>
+        <ul id="chat-messages" class="landing-chat-messages" aria-live="polite"></ul>
+        <form id="chat-form" class="landing-chat-form">
+          <label for="chat-input" class="landing-visually-hidden">Escribe tu mensaje</label>
+          <input class="input" type="text" id="chat-input" name="message" placeholder="Escribe tu pregunta…" autocomplete="off" required />
+          <button type="submit" class="btn btn-primary">Enviar</button>
+        </form>
+      </div>
+    </div>
+
+    <footer class="landing-footer">
+      <div class="landing-footer-inner">
+        <span class="muted">© 2026 TodoMark</span>
+        <nav aria-label="Enlaces del pie de página">
+          <a href="#">Términos</a>
+          <a href="#">Privacidad</a>
+          <a href="#">Contacto</a>
+        </nav>
+      </div>
+    </footer>
+
+    <style>
+      .landing-body {
+        margin: 0;
+      }
+      .landing-nav {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+      }
+      .landing-nav-inner {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 14px 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .landing-logo {
+        font-family: var(--font-display);
+        font-weight: 700;
+        font-size: 18px;
+        color: var(--ink);
+      }
+      .landing-hero {
+        padding: 72px 24px;
+        background: linear-gradient(180deg, var(--primary-tint), var(--bg));
+        text-align: center;
+      }
+      .landing-hero-inner {
+        max-width: 720px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        align-items: center;
+      }
+      .landing-hero h1 {
+        font-family: var(--font-display);
+        font-size: 38px;
+        line-height: 1.15;
+        color: var(--ink);
+        margin: 0;
+      }
+      .landing-hero-sub {
+        font-size: 16px;
+        color: var(--ink-soft);
+        margin: 0;
+        line-height: 1.55;
+      }
+      .landing-hero-cta {
+        font-size: 15px;
+        padding: 12px 24px;
+      }
+      .landing-section {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 56px 24px;
+      }
+      .landing-section h2 {
+        font-family: var(--font-display);
+        font-size: 26px;
+        margin: 0 0 20px;
+        color: var(--ink);
+      }
+      .landing-grid-5 {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 16px;
+      }
+      .landing-benefit {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .landing-benefit svg {
+        width: 26px;
+        height: 26px;
+        color: var(--primary);
+      }
+      .landing-benefit h3 {
+        font-family: var(--font-display);
+        font-size: 14.5px;
+        margin: 0;
+        color: var(--ink);
+      }
+      .landing-benefit p {
+        margin: 0;
+        font-size: 12.5px;
+        color: var(--ink-soft);
+        line-height: 1.5;
+      }
+      .landing-grid-3 {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+      }
+      .landing-testimonial {
+        margin: 0;
+        font-style: italic;
+        color: var(--ink-soft);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .landing-testimonial footer {
+        font-style: normal;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--ink-faint);
+      }
+      .landing-compare-table th:not(:first-child),
+      .landing-compare-table td:not(:first-child) {
+        text-align: center;
+      }
+      .landing-video-placeholder {
+        aspect-ratio: 16 / 9;
+        max-width: 720px;
+        margin: 0 auto;
+        background: var(--surface-alt);
+        border: 1px dashed var(--border);
+        border-radius: var(--radius);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--ink-faint);
+        font-weight: 600;
+      }
+      .landing-chat-toggle {
+        position: fixed;
+        right: 24px;
+        bottom: 24px;
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
+        padding: 0;
+        justify-content: center;
+        box-shadow: var(--shadow);
+        z-index: 30;
+      }
+      .landing-chat-toggle svg {
+        width: 24px;
+        height: 24px;
+      }
+      .landing-chat-modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(20, 24, 31, 0.35);
+        display: flex;
+        align-items: flex-end;
+        justify-content: flex-end;
+        padding: 24px;
+        z-index: 40;
+      }
+      .landing-chat-modal[hidden] {
+        display: none;
+      }
+      .landing-chat-panel {
+        width: 340px;
+        max-width: calc(100vw - 48px);
+        max-height: 70vh;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 16px;
+      }
+      .landing-chat-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .landing-chat-header h2 {
+        font-size: 15px;
+      }
+      .landing-chat-header svg {
+        width: 16px;
+        height: 16px;
+      }
+      .landing-chat-messages {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        overflow-y: auto;
+        flex: 1;
+        min-height: 120px;
+      }
+      .landing-chat-messages li {
+        padding: 8px 10px;
+        border-radius: var(--radius-sm);
+        font-size: 13px;
+        line-height: 1.4;
+        max-width: 90%;
+      }
+      .landing-chat-messages li.from-user {
+        align-self: flex-end;
+        background: var(--primary-tint);
+        color: var(--primary-dark);
+      }
+      .landing-chat-messages li.from-bot {
+        align-self: flex-start;
+        background: var(--surface-alt);
+        color: var(--ink);
+      }
+      .landing-chat-form {
+        display: flex;
+        gap: 8px;
+      }
+      .landing-chat-form .input {
+        flex: 1;
+      }
+      .landing-footer {
+        border-top: 1px solid var(--border);
+        padding: 24px;
+        background: var(--surface);
+      }
+      .landing-footer-inner {
+        max-width: 1100px;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      .landing-footer-inner nav {
+        display: flex;
+        gap: 16px;
+      }
+      .landing-footer-inner a {
+        text-decoration: none;
+        color: var(--ink-soft);
+        font-size: 13px;
+      }
+      .landing-footer-inner a:hover {
+        color: var(--primary);
+      }
+      .landing-visually-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+
+      @media (max-width: 860px) {
+        .landing-hero {
+          padding: 48px 16px;
+        }
+        .landing-hero h1 {
+          font-size: 28px;
+        }
+        .landing-grid-5 {
+          grid-template-columns: 1fr 1fr;
+        }
+        .landing-grid-3 {
+          grid-template-columns: 1fr;
+        }
+        .landing-section {
+          padding: 40px 16px;
+        }
+        .landing-chat-panel {
+          width: 100%;
+        }
+      }
+    </style>
+
+    <script>
+      // Mismo patrón que ticketService.ts: Astro solo expone PUBLIC_* al cliente.
+      const API_URL =
+        (window as any).__ENV?.PUBLIC_API_URL ||
+        import.meta.env.PUBLIC_API_URL ||
+        'http://localhost:8081';
+      const DIRECTUS_URL =
+        (window as any).__ENV?.PUBLIC_DIRECTUS_URL ||
+        import.meta.env.PUBLIC_DIRECTUS_URL ||
+        'http://localhost:8083';
+
+      // G11 (embudo comercial): contador simple de visitas, sin cookies ni tracking de terceros.
+      // Trackeo empezó 2026-09-23 — no hay datos históricos previos, no se inventan.
+      fetch(`${API_URL}/api/landing/visit`, { method: 'POST' }).catch(() => {});
+
+      // CMS (Directus): fetch en el navegador, no en build — así el contenido está siempre
+      // fresco (sin rebuild, sin caché de Docker que romper). El HTML ya trae el fallback
+      // hardcodeado pintado (primer paint + SEO + sin JS); esto solo lo reemplaza si Directus
+      // responde con un valor no vacío para esa key. Si Directus está caído, no toca nada.
+      (async () => {
+        try {
+          const res = await fetch(`${DIRECTUS_URL}/items/landing_content?limit=-1`);
+          if (!res.ok) return;
+          const json = await res.json();
+          const rows = Array.isArray(json?.data) ? json.data : [];
+          for (const row of rows) {
+            if (!row?.key || !row.value) continue;
+            document.querySelectorAll(`[data-cms-key="${row.key}"]`).forEach((el) => {
+              el.textContent = row.value;
+            });
+          }
+        } catch {
+          // Directus no disponible: la página se queda con el fallback ya pintado.
+        }
+      })();
+
+      const leadForm = document.getElementById('lead-form') as HTMLFormElement | null;
+      const leadStatus = document.getElementById('lead-status') as HTMLParagraphElement | null;
+      const leadSubmit = document.getElementById('lead-submit') as HTMLButtonElement | null;
+
+      leadForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!leadStatus || !leadSubmit) return;
+        const formData = new FormData(leadForm);
+        const name = String(formData.get('name') || '').trim();
+        const email = String(formData.get('email') || '').trim();
+        const company = String(formData.get('company') || '').trim();
+        if (!name || !email) {
+          leadStatus.textContent = 'Nombre y email son obligatorios.';
+          leadStatus.className = 'error-text';
+          return;
+        }
+        leadSubmit.disabled = true;
+        leadStatus.textContent = 'Enviando…';
+        leadStatus.className = 'muted';
+        try {
+          const res = await fetch(`${API_URL}/api/leads`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, email, company }),
+          });
+          const data = await res.json().catch(() => undefined);
+          if (!res.ok) throw new Error((data as any)?.error ?? `HTTP ${res.status}`);
+          leadStatus.textContent = '¡Gracias! Te contactaremos pronto.';
+          leadStatus.className = 'ok-text';
+          leadForm.reset();
+        } catch (err: any) {
+          leadStatus.textContent = err?.message ?? 'No se pudo enviar el formulario.';
+          leadStatus.className = 'error-text';
+        } finally {
+          leadSubmit.disabled = false;
+        }
+      });
+
+      const chatToggle = document.getElementById('chat-toggle') as HTMLButtonElement | null;
+      const chatModal = document.getElementById('chat-modal') as HTMLDivElement | null;
+      const chatClose = document.getElementById('chat-close') as HTMLButtonElement | null;
+      const chatForm = document.getElementById('chat-form') as HTMLFormElement | null;
+      const chatInput = document.getElementById('chat-input') as HTMLInputElement | null;
+      const chatMessages = document.getElementById('chat-messages') as HTMLUListElement | null;
+
+      function addMessage(text: string, from: 'user' | 'bot') {
+        if (!chatMessages) return;
+        const li = document.createElement('li');
+        li.className = from === 'user' ? 'from-user' : 'from-bot';
+        li.textContent = text;
+        chatMessages.appendChild(li);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
+
+      function openChat() {
+        if (!chatModal || !chatToggle) return;
+        chatModal.hidden = false;
+        chatToggle.setAttribute('aria-expanded', 'true');
+        chatInput?.focus();
+      }
+
+      function closeChat() {
+        if (!chatModal || !chatToggle) return;
+        chatModal.hidden = true;
+        chatToggle.setAttribute('aria-expanded', 'false');
+        chatToggle.focus();
+      }
+
+      chatToggle?.addEventListener('click', () => {
+        if (chatModal?.hidden) openChat();
+        else closeChat();
+      });
+      chatClose?.addEventListener('click', closeChat);
+      chatModal?.addEventListener('keydown', (e: KeyboardEvent) => {
+        if (e.key === 'Escape') closeChat();
+      });
+
+      chatForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!chatInput) return;
+        const message = chatInput.value.trim();
+        if (!message) return;
+        addMessage(message, 'user');
+        chatInput.value = '';
+        chatInput.disabled = true;
+        try {
+          const res = await fetch(`${API_URL}/api/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message }),
+          });
+          const data = await res.json().catch(() => undefined);
+          if (!res.ok) throw new Error((data as any)?.error ?? `HTTP ${res.status}`);
+          addMessage((data as any)?.reply ?? 'Sin respuesta.', 'bot');
+        } catch (err: any) {
+          addMessage(err?.message ?? 'No se pudo contactar al asistente.', 'bot');
+        } finally {
+          chatInput.disabled = false;
+          chatInput.focus();
+        }
+      });
+    </script>
+  </body>
+</html>

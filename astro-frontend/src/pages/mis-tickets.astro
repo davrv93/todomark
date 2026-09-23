@@ -1,0 +1,18 @@
+---
+import ClientReportsIsland from '../components/ClientReportsIsland';
+import '../styles/theme.css';
+---
+
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mis Reportes — TodoMark</title>
+    <script is:inline src="/config.js"></script>
+  </head>
+  <body>
+    <main class="page-main" style="max-width: 900px; margin: 0 auto; padding: 24px;">
+      <ClientReportsIsland client:load />
+    </main>
+  </body>
+</html>

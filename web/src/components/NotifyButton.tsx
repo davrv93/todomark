@@ -32,13 +32,22 @@ const NotifyButton: React.FC<Props> = ({ ticket }) => {
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-      <button type="button" className="btn" onClick={handleNotify} disabled={state === 'sending'} style={{ background: 'var(--teal)', color: '#fff' }}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-          <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
-        </svg>
-        {state === 'sending' ? 'Enviando…' : 'Notificar por WhatsApp'}
+      <button type="button" className="btn" onClick={handleNotify} disabled={state === 'sending'} style={{ background: 'var(--teal)', color: '#fff', minWidth: 212, justifyContent: 'center' }}>
+        {state === 'sending' ? (
+          <svg className="spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round">
+            <circle cx="12" cy="12" r="9" opacity=".3" /><path d="M21 12a9 9 0 0 0-9-9" />
+          </svg>
+        ) : state === 'ok' ? (
+          <svg className="draw-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        ) : (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
+          </svg>
+        )}
+        {state === 'sending' ? 'Enviando…' : state === 'ok' ? 'Enviado' : 'Notificar por WhatsApp'}
       </button>
-      {state === 'ok' && <span className="ok-text">Notificación enviada</span>}
       {state === 'error' && <span className="error-text">{error}</span>}
     </div>
   );

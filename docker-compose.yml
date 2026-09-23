@@ -3,11 +3,20 @@ services:
     build:
       context: ./web
       args:
-        - VITE_API_URL=http://localhost:8081
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8081}
+        VITE_HYDRA_CLIENT_ID: ${VITE_HYDRA_CLIENT_ID:-}
+        VITE_HYDRA_AUTH_URL: ${VITE_HYDRA_AUTH_URL:-}
     ports:
       - "8080:80"
+    environment:
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:8081}
     depends_on:
       - todomark-api
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     restart: unless-stopped
 
   todomark-api:
@@ -19,10 +28,48 @@ services:
       - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
       - EVOLUTION_INSTANCE=${EVOLUTION_INSTANCE:-todomark}
       - WEBHOOK_URL=${WEBHOOK_URL:-http://todomark-api:3000}
+      - USE_META_WHATSAPP=${USE_META_WHATSAPP:-false}
+      - META_WHATSAPP_URL=${META_WHATSAPP_URL:-https://graph.facebook.com/v16.0}
+      - META_WHATSAPP_TOKEN=${META_WHATSAPP_TOKEN:-}
+      - META_WHATSAPP_PHONE_NUMBER_ID=${META_WHATSAPP_PHONE_NUMBER_ID:-}
+      - META_WHATSAPP_TEMPLATE=${META_WHATSAPP_TEMPLATE:-ticket_update}
+      - META_WHATSAPP_LANGUAGE=${META_WHATSAPP_LANGUAGE:-es}
+      - EMAIL_WEBHOOK_URL=${EMAIL_WEBHOOK_URL:-}
+      - EMAIL_API_KEY=${EMAIL_API_KEY:-}
+      - GLPI_URL=${GLPI_URL:-}
+      - GLPI_APP_TOKEN=${GLPI_APP_TOKEN:-}
+      - GLPI_USER=${GLPI_USER:-}
+      - GLPI_PASSWORD=${GLPI_PASSWORD:-}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+      - DEEPSEEK_API_URL=${DEEPSEEK_API_URL:-https://api.deepseek.com/v1/chat/completions}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GEMINI_API_URL=${GEMINI_API_URL:-https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent}
+      - REQUIRE_API_AUTH=${REQUIRE_API_AUTH:-false}
+      - API_BEARER_TOKEN=${API_BEARER_TOKEN:-}
+      - HYDRA_INTROSPECTION_URL=${HYDRA_INTROSPECTION_URL:-}
+      - HYDRA_CLIENT_ID=${HYDRA_CLIENT_ID:-}
+      - HYDRA_CLIENT_SECRET=${HYDRA_CLIENT_SECRET:-}
+      - HYDRA_ADMIN_URL=${HYDRA_ADMIN_URL:-http://hydra:4445}
+      - INBOX_SHOW_ALL=${INBOX_SHOW_ALL:-true}
+      # Candado opcional de destinos WhatsApp (ver internal/evolution/client.go) — vacío por
+      # default (sin restricción). Se activa puntualmente mientras el demo está expuesto por
+      # túnel a gente fuera del equipo (ver memoria "whatsapp-test-number-only").
+      - WHATSAPP_ALLOWLIST=${WHATSAPP_ALLOWLIST:-}
+      - CLICKHOUSE_URL=${CLICKHOUSE_URL:-clickhouse:9000}
+      - CLICKHOUSE_DB=${CLICKHOUSE_DB:-todomark}
+      - CLICKHOUSE_USER=${CLICKHOUSE_USER:-todomark}
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-todomark}
     volumes:
       - sqlite_data:/data
     depends_on:
       - evolution
+      - hydra
+      - clickhouse
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     restart: unless-stopped
 
   evolution:
@@ -52,7 +99,175 @@ services:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
 
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    environment:
+      - CLICKHOUSE_DB=todomark
+      - CLICKHOUSE_USER=${CLICKHOUSE_USER:-todomark}
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-todomark}
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - ./clickhouse-cors.xml:/etc/clickhouse-server/config.d/cors.xml:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8123/ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # ClickHouse solo agrega headers CORS al preflight (OPTIONS), no a la respuesta
+  # real — el navegador igual bloquea. Este proxy los agrega siempre.
+  clickhouse-cors-proxy:
+    image: nginx:alpine
+    ports:
+      - "8085:80"
+    volumes:
+      - ./clickhouse-cors-proxy.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - clickhouse
+    restart: unless-stopped
+
+  tabix:
+    image: spoonest/clickhouse-tabix-web-client:latest
+    ports:
+      - "8084:80"
+    depends_on:
+      - clickhouse
+    restart: unless-stopped
+
+  # F5 (DOCUMENTACION.md §11): dashboards sobre ClickHouse. Datasource + dashboard
+  # provisionados como código (grafana/provisioning/), sin clicks manuales — ver
+  # grafana/provisioning/datasources/clickhouse.yaml y .../dashboards/json/executive.json.
+  grafana:
+    image: grafana/grafana-oss:latest
+    ports:
+      - "3300:3000"
+    environment:
+      - GF_INSTALL_PLUGINS=grafana-clickhouse-datasource
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-todomark_admin_2026}
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - clickhouse
+    restart: unless-stopped
+
+  hydra-migrate:
+    image: oryd/hydra:v2.2.0
+    environment:
+      - DSN=postgres://todomark:todomark@postgres:5432/hydra?sslmode=disable
+    command: migrate sql -e --yes
+    depends_on:
+      - postgres
+    restart: "no"
+
+  hydra:
+    image: oryd/hydra:v2.2.0
+    ports:
+      - "4444:4444"
+      - "4445:4445"
+    environment:
+      - DSN=postgres://todomark:todomark@postgres:5432/hydra?sslmode=disable
+      - URLS_SELF_ISSUER=http://localhost:4444/
+      - URLS_LOGIN=http://localhost:8080/login
+      - URLS_CONSENT=http://localhost:8080/consent
+      - SECRETS_SYSTEM=${HYDRA_SYSTEM_SECRET:-todomark_hydra_dev_secret_change_me_32b}
+      - SERVE_PUBLIC_CORS_ENABLED=true
+      - SERVE_PUBLIC_CORS_ALLOWED_ORIGINS=http://localhost:8080,http://localhost:8082
+      - SERVE_PUBLIC_CORS_ALLOWED_METHODS=GET,POST,OPTIONS
+    command: serve all --dev
+    depends_on:
+      hydra-migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4445/health/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  astro-frontend:
+    build:
+      context: ./astro-frontend
+      # landing.astro usa output: 'static', así que el fetch a Directus corre en build time
+      # (dentro del contenedor de build), no en el navegador. "network: host" hace que ese
+      # contenedor de build comparta la red del host, así "localhost:8083" (puerto publicado
+      # de directus) es alcanzable durante `npm run build` (un `network: default`/bridge de
+      # Compose NO sirve aquí: BuildKit no resuelve nombres de servicio de Compose en ese modo).
+      # Requiere que `directus` ya esté up + con landing_content sembrado antes de este build;
+      # si no lo está, el fetch falla y se usa el fallback hardcodeado (ver landing.astro).
+      network: host
+      args:
+        # Astro solo expone al cliente variables prefijadas PUBLIC_ (no VITE_), por eso se
+        # remapean aquí desde las mismas variables de origen que usa todamark-web.
+        PUBLIC_API_URL: ${VITE_API_URL:-http://localhost:8081}
+        PUBLIC_HYDRA_CLIENT_ID: ${VITE_HYDRA_CLIENT_ID:-}
+        PUBLIC_HYDRA_AUTH_URL: ${VITE_HYDRA_AUTH_URL:-}
+        PUBLIC_DIRECTUS_URL: ${PUBLIC_DIRECTUS_URL:-http://localhost:8083}
+    environment:
+      # A diferencia de VITE (Vite/todamark-web), Astro no soporta config runtime nativa —
+      # pero el proyecto ya usa un script propio (docker-entrypoint.d/40-runtime-config.sh,
+      # window.__ENV) igual que todamark-web; faltaba este bloque para que ese script reciba
+      # el valor (antes solo llegaba por build arg, nunca en runtime). Mismo patrón que abajo.
+      - PUBLIC_API_URL=${PUBLIC_API_URL:-http://localhost:8081}
+    ports:
+      - "8082:80"
+    depends_on:
+      - todomark-api
+      - directus
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  directus:
+    image: directus/directus:latest
+    ports:
+      - "8083:8055"
+    environment:
+      - KEY=${DIRECTUS_KEY:-todomark_directus_key_change_me}
+      - SECRET=${DIRECTUS_SECRET:-todomark_directus_secret_change_me}
+      - DB_CLIENT=pg
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_DATABASE=directus
+      - DB_USER=todomark
+      - DB_PASSWORD=todomark
+      - ADMIN_EMAIL=${DIRECTUS_ADMIN_EMAIL:-admin@todomark.dev}
+      - ADMIN_PASSWORD=${DIRECTUS_ADMIN_PASSWORD:-todomark_admin_2026}
+      - PUBLIC_URL=http://localhost:8083
+      - CORS_ENABLED=true
+      - CORS_ORIGIN=http://localhost:8082,http://localhost:8080
+    depends_on:
+      - postgres
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8055/server/ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  qwik-frontend:
+    build:
+      context: ./qwik-frontend
+    ports:
+      - "8086:80"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
 volumes:
   sqlite_data:
   postgres_data:
   evolution_instances:
+  clickhouse_data:
+  grafana_data:

@@ -1,15 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { ticketService } from '../services/ticketService';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { API_URL, ticketService } from '../services/ticketService';
+import type { Attachment } from '../services/ticketService';
 import { Ticket, TicketStatus } from '../models/Ticket';
 import { TRANSITIONS } from '../models/transitions';
 import { TicketStatusBadge, TicketPriorityTag, STATUS_META } from '../components/TicketStatusBadge';
 import NotifyButton from '../components/NotifyButton';
+import MobileSheet from '../components/MobileSheet';
 import { formatDateTime, formatRelative } from '../utils/date';
+import { isGroupTarget } from '../utils/whatsapp';
 
 const TicketDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [ticket, setTicket] = useState<Ticket | null>(null);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [error, setError] = useState('');
   const [transitioning, setTransitioning] = useState(false);
 
@@ -23,6 +28,7 @@ const TicketDetailPage: React.FC = () => {
 
   useEffect(() => {
     load();
+    if (id) ticketService.getAttachments(id).then(setAttachments).catch(() => {});
   }, [id]);
 
   if (error) return <p className="error-text">{error}</p>;
@@ -43,6 +49,7 @@ const TicketDetailPage: React.FC = () => {
   const nextStatuses = TRANSITIONS[ticket.status] ?? [];
 
   return (
+    <MobileSheet onClose={() => navigate('/')}>
     <div className="detail-grid">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--ink-soft)', textDecoration: 'none', width: 'fit-content' }}>
@@ -66,19 +73,23 @@ const TicketDetailPage: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <TicketStatusBadge status={ticket.status} size="lg" />
           <TicketPriorityTag priority={ticket.priority} />
-          <span style={{ flex: 1 }} />
-          {nextStatuses.map((s) => (
-            <button
-              key={s}
-              type="button"
-              className="btn btn-outline-primary"
-              disabled={transitioning}
-              onClick={() => handleStatusChange(s)}
-            >
-              {STATUS_META[s].label}
-            </button>
-          ))}
         </div>
+
+        {nextStatuses.length > 0 && (
+          <div className="primary-actions" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {nextStatuses.map((s) => (
+              <button
+                key={s}
+                type="button"
+                className="btn btn-outline-primary"
+                disabled={transitioning}
+                onClick={() => handleStatusChange(s)}
+              >
+                {STATUS_META[s].label}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="card">
           <h2 style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--ink-faint)', marginBottom: 8 }}>Descripción</h2>
@@ -97,13 +108,71 @@ const TicketDetailPage: React.FC = () => {
               <div style={{ fontSize: 13, fontWeight: 600 }}>{ticket.assignedTo ?? 'Sin asignar'}</div>
             </div>
             <div>
+              <div className="muted" style={{ marginBottom: 3 }}>Email</div>
+              <div style={{ fontSize: 13, fontWeight: 600 }}>{ticket.email ?? 'Sin email'}</div>
+            </div>
+            <div>
+              <div className="muted" style={{ marginBottom: 3 }}>Equipo</div>
+              <div style={{ fontSize: 13, fontWeight: 600 }}>{ticket.assignedTeam ?? 'Sin equipo'}</div>
+            </div>
+            <div>
+              <div className="muted" style={{ marginBottom: 3 }}>Cierre</div>
+              <div style={{ fontSize: 13, fontWeight: 600 }}>{ticket.closedAt ? formatDateTime(ticket.closedAt) : 'Sin cerrar'}</div>
+            </div>
+            <div>
               <div className="muted" style={{ marginBottom: 3 }}>WhatsApp</div>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>{ticket.whatsappChatId ?? 'Sin asignar'}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                {ticket.whatsappChatId ?? 'Sin asignar'}
+                {ticket.whatsappChatId && isGroupTarget(ticket.whatsappChatId) && (
+                  <span className="badge" style={{ background: 'var(--surface-alt)', color: 'var(--ink-soft)' }}>Grupo</span>
+                )}
+              </div>
+            </div>
+            <div>
+              <div className="muted" style={{ marginBottom: 3 }}>GLPI</div>
+              <div style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                {ticket.remoteId ? (
+                  <>
+                    <span className="badge" style={{ background: 'var(--teal-tint)', color: 'var(--teal-text)' }}>Sincronizado</span>
+                    #{ticket.remoteId}
+                  </>
+                ) : (
+                  <span className="muted">No sincronizado</span>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
         <NotifyButton ticket={ticket} />
+
+        {attachments.length > 0 && (
+          <div className="card">
+            <h2 style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--ink-faint)', marginBottom: 12 }}>Adjuntos</h2>
+            <div className="two-col-grid">
+              {attachments.map((a) => (
+                <div key={a.id} style={{ background: 'var(--surface-alt)', borderRadius: 'var(--radius-sm)', padding: 14 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>{a.kind === 'photo' ? 'Foto' : 'Nota de voz'}</div>
+                  {a.kind === 'photo' ? (
+                    <a href={`${API_URL}/api/attachments/${a.id}/file`} target="_blank" rel="noreferrer">
+                      <img
+                        src={`${API_URL}/api/attachments/${a.id}/file`}
+                        alt="Adjunto"
+                        style={{ width: '100%', borderRadius: 'var(--radius-sm)', marginBottom: 8, display: 'block' }}
+                      />
+                    </a>
+                  ) : (
+                    <audio controls src={`${API_URL}/api/attachments/${a.id}/file`} style={{ width: '100%', marginBottom: 8 }} />
+                  )}
+                  <p className="muted" style={{ fontSize: 12.5, margin: '0 0 10px' }}>
+                    {a.transcript ? a.transcript : a.kind === 'audio' ? 'Nota de voz sin transcribir (Gemini no configurado).' : 'Imagen adjunta.'}
+                  </p>
+                  <span className="badge" style={{ background: 'var(--primary-tint)', color: 'var(--primary-dark)' }}>Chat de WhatsApp</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
@@ -112,7 +181,7 @@ const TicketDetailPage: React.FC = () => {
         {ticket.history.map((e, i) => (
           <div key={i} style={{ display: 'flex', gap: 10, paddingBottom: 16 }}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 10 }}>
-              <span style={{ width: 9, height: 9, borderRadius: '50%', background: 'var(--primary)', flexShrink: 0, marginTop: 2 }} />
+              <span className="timeline-dot" style={{ width: 9, height: 9, borderRadius: '50%', background: 'var(--primary)', flexShrink: 0, marginTop: 2, animationDelay: `${Math.min(i, 8) * 60}ms` }} />
               {i < ticket.history.length - 1 && <span style={{ width: 1, flex: 1, background: 'var(--border)', marginTop: 4 }} />}
             </div>
             <div>
@@ -126,6 +195,7 @@ const TicketDetailPage: React.FC = () => {
         ))}
       </div>
     </div>
+    </MobileSheet>
   );
 };
 

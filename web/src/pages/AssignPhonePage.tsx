@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 
 import { ticketService } from '../services/ticketService';
+import { WHATSAPP_TARGET_RE } from '../utils/whatsapp';
+import WhatsappTargetInput from '../components/WhatsappTargetInput';
 
 export default function AssignPhonePage() {
   const { id } = useParams<{ id: string }>();
@@ -15,6 +17,10 @@ export default function AssignPhonePage() {
     e.preventDefault();
     setError('');
     setMsg('');
+    if (!WHATSAPP_TARGET_RE.test(phone)) {
+      setError('Formato inválido: número (solo dígitos, código de país sin +) o JID de grupo terminado en @g.us');
+      return;
+    }
     setSaving(true);
     try {
       await ticketService.setRecipient(id!, phone);
@@ -35,14 +41,14 @@ export default function AssignPhonePage() {
         </svg>
         Volver al ticket
       </Link>
-      <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>Asignar número WhatsApp</h1>
+      <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>Asignar número o grupo de WhatsApp</h1>
       <p className="muted" style={{ marginTop: 0 }}>
-        Al asignar un número activas el chatbot para él: podrá consultar el estado de este ticket escribiendo "menu" en WhatsApp.
+        Con un número individual, además activas el chatbot: podrá consultar el estado de este ticket escribiendo "menu" en WhatsApp (no aplica a grupos).
       </p>
       <form onSubmit={handleSubmit} className="card form-card">
         <div className="field">
-          <label htmlFor="a-phone">Número (solo dígitos)</label>
-          <input id="a-phone" className="input" placeholder="51987654321" value={phone} onChange={(e) => setPhone(e.target.value)} required />
+          <label htmlFor="a-phone">Número o grupo</label>
+          <WhatsappTargetInput id="a-phone" value={phone} onChange={setPhone} />
         </div>
         <button type="submit" className="btn btn-primary" disabled={saving} style={{ justifyContent: 'center' }}>
           {saving ? 'Asignando…' : 'Asignar'}

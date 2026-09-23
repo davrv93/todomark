@@ -30,8 +30,8 @@ const TicketTable: React.FC<Props> = ({ tickets }) => {
           </tr>
         </thead>
         <tbody>
-          {tickets.map((t) => (
-            <TicketRow key={t.id} ticket={t} />
+          {tickets.map((t, i) => (
+            <TicketRow key={t.id} ticket={t} index={i} />
           ))}
         </tbody>
       </table>

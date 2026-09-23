@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { sendWhatsApp } from '../services/notificationService';
 import { ticketService } from '../services/ticketService';
+import { WHATSAPP_TARGET_RE } from '../utils/whatsapp';
 
 export default function PhoneLinkPage() {
   const navigate = useNavigate();
@@ -14,8 +15,8 @@ export default function PhoneLinkPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatus(null);
-    if (!/^\d{8,15}$/.test(phone)) {
-      setStatus({ type: 'error', text: 'Formato inválido: solo dígitos, código de país sin +' });
+    if (!WHATSAPP_TARGET_RE.test(phone)) {
+      setStatus({ type: 'error', text: 'Formato inválido: número (solo dígitos, código de país sin +) o JID de grupo terminado en @g.us' });
       return;
     }
     setSending(true);
@@ -45,8 +46,8 @@ export default function PhoneLinkPage() {
           <input id="p-id" className="input" value={ticketId} onChange={(e) => setTicketId(e.target.value)} required />
         </div>
         <div className="field">
-          <label htmlFor="p-phone">Número WhatsApp</label>
-          <input id="p-phone" className="input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="51987654321" required />
+          <label htmlFor="p-phone">Número o grupo de WhatsApp</label>
+          <input id="p-phone" className="input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="51987654321 o ID de grupo (…@g.us)" required />
         </div>
         <div className="field">
           <label htmlFor="p-msg">Mensaje</label>

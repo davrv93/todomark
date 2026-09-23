@@ -3,6 +3,8 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import { ticketService } from '../services/ticketService';
 import { PRIORITY_META } from '../components/TicketStatusBadge';
 import { Priority } from '../models/Ticket';
+import { WHATSAPP_TARGET_RE } from '../utils/whatsapp';
+import WhatsappTargetInput from '../components/WhatsappTargetInput';
 
 type FormState = {
   title: string;
@@ -10,10 +12,10 @@ type FormState = {
   priority: Priority;
   requester: string;
   assignedTo: string | null;
+  email: string;
+  assignedTeam: string;
   whatsappPhone: string;
 };
-
-const PHONE_RE = /^\d{8,15}$/;
 
 const PRIORITIES = Object.keys(PRIORITY_META) as Priority[];
 
@@ -35,6 +37,8 @@ const TicketEditPage: React.FC = () => {
           priority: t.priority,
           requester: t.requester,
           assignedTo: t.assignedTo,
+          email: t.email ?? '',
+          assignedTeam: t.assignedTeam ?? '',
           whatsappPhone: t.whatsappChatId ?? '',
         });
         setInitialPhone(t.whatsappChatId ?? '');
@@ -55,8 +59,8 @@ const TicketEditPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (form.whatsappPhone && !PHONE_RE.test(form.whatsappPhone)) {
-      setError('Teléfono inválido: solo dígitos, código de país sin +');
+    if (form.whatsappPhone && !WHATSAPP_TARGET_RE.test(form.whatsappPhone)) {
+      setError('Destino inválido: número (solo dígitos, código de país sin +) o JID de grupo terminado en @g.us');
       return;
     }
     setSaving(true);
@@ -67,6 +71,8 @@ const TicketEditPage: React.FC = () => {
         priority: form.priority,
         requester: form.requester,
         assignedTo: form.assignedTo || null,
+        email: form.email || null,
+        assignedTeam: form.assignedTeam || null,
       });
       if (form.whatsappPhone && form.whatsappPhone !== initialPhone) {
         await ticketService.setRecipient(id ?? '', form.whatsappPhone);
@@ -121,13 +127,27 @@ const TicketEditPage: React.FC = () => {
             <input id="e-req" className="input" name="requester" value={form.requester} onChange={handleChange} required />
           </div>
           <div className="field">
+            <label htmlFor="e-email">Email</label>
+            <input id="e-email" className="input" name="email" type="email" value={form.email} onChange={handleChange} placeholder="solicitante@empresa.com" />
+          </div>
+        </div>
+        <div className="two-col-grid">
+          <div className="field">
             <label htmlFor="e-assign">Asignado a</label>
             <input id="e-assign" className="input" name="assignedTo" value={form.assignedTo ?? ''} onChange={handleChange} placeholder="Sin asignar" />
+          </div>
+          <div className="field">
+            <label htmlFor="e-team">Equipo asignado</label>
+            <input id="e-team" className="input" name="assignedTeam" value={form.assignedTeam} onChange={handleChange} placeholder="Mesa de ayuda, Soporte N2..." />
           </div>
         </div>
         <div className="field">
           <label htmlFor="e-phone">WhatsApp del solicitante</label>
-          <input id="e-phone" className="input" name="whatsappPhone" value={form.whatsappPhone} onChange={handleChange} placeholder="51987654321" />
+          <WhatsappTargetInput
+            id="e-phone"
+            value={form.whatsappPhone}
+            onChange={(v) => setForm((prev) => (prev ? { ...prev, whatsappPhone: v } : prev))}
+          />
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>

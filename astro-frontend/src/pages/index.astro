@@ -1,0 +1,18 @@
+---
+import KanbanIsland from '../components/KanbanIsland';
+import '../styles/theme.css';
+---
+
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TodoMark - Kanban &amp; Reportes</title>
+    <script is:inline src="/config.js"></script>
+  </head>
+  <body>
+    <main class="page-main" style="max-width: 1200px; margin: 0 auto; padding: 24px; display: flex; flex-direction: column; gap: 32px;">
+      <KanbanIsland client:load />
+    </main>
+  </body>
+</html>

@@ -21,3 +21,7 @@ api-go/*.db
 # editor / os
 .DS_Store
 .vscode/
+
+# tool state (not project files)
+.claude/scheduled_tasks.lock
+.serena/
