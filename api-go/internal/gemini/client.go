@@ -27,10 +27,16 @@ type Client struct {
 
 func NewFromEnv() *Client {
 	return &Client{
-		apiKey:      os.Getenv("GEMINI_API_KEY"),
-		baseURL:     envOr("GEMINI_API_URL", "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent"),
+		apiKey: os.Getenv("GEMINI_API_KEY"),
+		// gemini-2.0-flash-lite fue retirado por Google (404 "no longer available",
+		// detectado 2026-09-23) — reemplazado por 3.5-flash-lite, que es lo que la
+		// propia API sugiere en el error. Si Google lo vuelve a rotar, se overridea
+		// con GEMINI_API_URL sin tocar código.
+		baseURL:     envOr("GEMINI_API_URL", "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent"),
 		fallbackURL: envOr("GEMINI_FALLBACK_API_URL", "https://generativelanguage.googleapis.com/v1beta/models/gemma-3-27b-it:generateContent"),
-		http:        &http.Client{Timeout: 30 * time.Second},
+		// 90s y no 30s: transcribir una nota de voz sube el audio en base64 y tarda
+		// más que un chat de texto — con 30s daba "context deadline exceeded".
+		http:        &http.Client{Timeout: 90 * time.Second},
 	}
 }
 
@@ -79,6 +85,12 @@ type generateResponse struct {
 	} `json:"candidates"`
 }
 
+// ChatWithSystem es un alias de Chat con el nombre que usa reportchat (mismo shape que
+// deepseek.Client.ChatWithSystem, así main.go puede tratar ambos clientes por interfaz).
+func (c *Client) ChatWithSystem(sysPrompt, message string) (string, error) {
+	return c.Chat(sysPrompt, message)
+}
+
 // Chat envía systemPrompt (rol) + message (turno del usuario) a Gemini y devuelve el texto de respuesta.
 func (c *Client) Chat(sysPrompt, message string) (string, error) {
 	reqBody := generateRequest{
@@ -106,8 +118,27 @@ func (c *Client) Transcribe(audioBytes []byte, mimeType string) (string, error) 
 	return text, err
 }
 
+// ChatWithMedia es Chat + un adjunto (imagen o audio) en la misma consulta — entrada
+// multimodal del bot de WhatsApp. Mismo camino que Chat/Transcribe, solo cambia el part.
+func (c *Client) ChatWithMedia(sysPrompt, message, mimeType string, data []byte) (string, error) {
+	reqBody := generateRequest{
+		SystemInstruction: &geminiContent{Parts: []geminiPart{{Text: sysPrompt}}},
+		Contents: []geminiContent{{Parts: []geminiPart{
+			{Text: message},
+			{InlineData: &inlineData{MimeType: mimeType, Data: base64.StdEncoding.EncodeToString(data)}},
+		}}},
+	}
+	return c.generate(c.baseURL, reqBody)
+}
+
 func isQuotaError(err error) bool {
 	return strings.Contains(err.Error(), "status 429")
+}
+
+// IsQuotaError expone isQuotaError a quien llama desde afuera del paquete (ej. el bot de
+// WhatsApp, que avisa al usuario y reintenta una sola vez).
+func IsQuotaError(err error) bool {
+	return err != nil && isQuotaError(err)
 }
 
 func (c *Client) generate(url string, reqBody generateRequest) (string, error) {

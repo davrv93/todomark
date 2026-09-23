@@ -43,7 +43,7 @@ services:
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
       - DEEPSEEK_API_URL=${DEEPSEEK_API_URL:-https://api.deepseek.com/v1/chat/completions}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
-      - GEMINI_API_URL=${GEMINI_API_URL:-https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent}
+      - GEMINI_API_URL=${GEMINI_API_URL:-https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent}
       - REQUIRE_API_AUTH=${REQUIRE_API_AUTH:-false}
       - API_BEARER_TOKEN=${API_BEARER_TOKEN:-}
       - HYDRA_INTROSPECTION_URL=${HYDRA_INTROSPECTION_URL:-}
@@ -51,10 +51,10 @@ services:
       - HYDRA_CLIENT_SECRET=${HYDRA_CLIENT_SECRET:-}
       - HYDRA_ADMIN_URL=${HYDRA_ADMIN_URL:-http://hydra:4445}
       - INBOX_SHOW_ALL=${INBOX_SHOW_ALL:-true}
-      # Candado opcional de destinos WhatsApp (ver internal/evolution/client.go) — vacío por
-      # default (sin restricción). Se activa puntualmente mientras el demo está expuesto por
-      # túnel a gente fuera del equipo (ver memoria "whatsapp-test-number-only").
-      - WHATSAPP_ALLOWLIST=${WHATSAPP_ALLOWLIST:-}
+      # Candado de destinos WhatsApp (ver internal/evolution/client.go): SOLO se puede mandar
+      # a estos números. Default explícito con los 3 autorizados por el usuario (formato
+      # dígitos con código de país, igual que los demás; onlyDigits normaliza).
+      - WHATSAPP_ALLOWLIST=${WHATSAPP_ALLOWLIST:-51992621314,51983644486,51921305769}
       - CLICKHOUSE_URL=${CLICKHOUSE_URL:-clickhouse:9000}
       - CLICKHOUSE_DB=${CLICKHOUSE_DB:-todomark}
       - CLICKHOUSE_USER=${CLICKHOUSE_USER:-todomark}

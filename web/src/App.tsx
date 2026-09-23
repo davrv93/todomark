@@ -18,6 +18,7 @@ import SettingsPage from './pages/SettingsPage';
 import ReportsPage from './pages/ReportsPage';
 import ExecutivePage from './pages/ExecutivePage';
 import DashboardBuilderPage from './pages/DashboardBuilderPage';
+import ReportChatPage from './pages/ReportChatPage';
 import { authService } from './services/authService';
 
 function ProtectedLayout() {
@@ -61,6 +62,7 @@ function App() {
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/executive" element={<ExecutivePage />} />
             <Route path="/dashboard-builder" element={<DashboardBuilderPage />} />
+            <Route path="/report-chat" element={<ReportChatPage />} />
             <Route path="/ticket/new" element={<TicketCreatePage />} />
             <Route path="/ticket/:id" element={<TicketDetailPage />} />
             <Route path="/ticket/:id/edit" element={<TicketEditPage />} />

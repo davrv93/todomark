@@ -68,6 +68,12 @@ type chatResponse struct {
 }
 
 func (c *Client) Chat(message string) (string, error) {
+	return c.ChatWithSystem(systemPrompt, message)
+}
+
+// ChatWithSystem permite overridear el prompt de rol (ej. el chat de reportería usa
+// uno propio, distinto del asistente de ventas de la landing).
+func (c *Client) ChatWithSystem(sysPrompt, message string) (string, error) {
 	apiKey := c.getAPIKey()
 	if apiKey == "" {
 		return "", errors.New("DEEPSEEK_API_KEY no configurado")
@@ -75,7 +81,7 @@ func (c *Client) Chat(message string) (string, error) {
 	reqBody := chatRequest{
 		Model: "deepseek-chat",
 		Messages: []chatMessage{
-			{Role: "system", Content: systemPrompt},
+			{Role: "system", Content: sysPrompt},
 			{Role: "user", Content: message},
 		},
 	}

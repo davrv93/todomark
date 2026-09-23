@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -28,6 +29,7 @@ import (
 	"todomark/api/internal/hydra"
 	"todomark/api/internal/presence"
 	"todomark/api/internal/report"
+	"todomark/api/internal/reportchat"
 	"todomark/api/internal/store"
 	metawhatsapp "todomark/api/internal/whatsapp"
 )
@@ -714,19 +716,20 @@ func main() {
 		logJSON("warn", "no se pudo crear el directorio de adjuntos", map[string]any{"error": err.Error()})
 	}
 
-	isIncidentKeyword := func(opt string) bool {
-		for _, kw := range []string{"incidente", "problema", "reportar", "nuevo ticket", "tengo un"} {
-			if strings.Contains(opt, kw) {
-				return true
-			}
+	// menuText es contextual: las opciones 1-5 solo aparecen cuando hay un ticket
+	// seleccionado en la sesión; los comandos globales están siempre.
+	menuText := func(withTicket bool) string {
+		var sb strings.Builder
+		sb.WriteString("🤖 *TodoMark Bot*\n\n")
+		if withTicket {
+			sb.WriteString("*1.* Estado de mi ticket\n*2.* Descripción\n*3.* Asignado a\n*4.* Última novedad\n*5.* Salir del menú\n\n")
 		}
-		return false
-	}
-
-	menuText := func() string {
-		return "🤖 *TodoMark Bot*\n\n*1.* Estado de mi ticket\n*2.* Descripción\n*3.* Asignado a\n*4.* Última novedad\n*5.* Salir del menú\n\n" +
-			"Escribe *reporte* en cualquier momento para recibir el resumen ejecutivo (texto + PDF).\n" +
-			"Escribe *incidente* para reportar un problema nuevo.\n\n_Notas de voz: solo se transcriben al reportar un incidente nuevo._"
+		sb.WriteString("*reporte* — resumen ejecutivo (texto + PDF)\n" +
+			"*excel* — el mismo resumen en Excel\n" +
+			"*grafico* — tickets por estado en gráfico (PDF)\n" +
+			"*incidente* — reportar un problema nuevo\n\n" +
+			"_O escribime tu pregunta y te la contesto con los datos reales. Acepto texto, foto y nota de voz._")
+		return sb.String()
 	}
 	answer := func(t store.Ticket, opt string) string {
 		switch opt {
@@ -747,6 +750,161 @@ func main() {
 			return "🗓 Última novedad:\n" + ev.Timestamp + " - " + ev.Action + " (" + ev.From + " → " + ev.To + ")"
 		}
 		return ""
+	}
+
+	// askGemini ejecuta una llamada a Gemini y, si vuelve por cuota (HTTP 429), le avisa al
+	// usuario por WhatsApp, espera y hace UN solo reintento. Reusa gemini.IsQuotaError.
+	askGemini := func(chat string, call func() (string, error)) (string, error) {
+		out, err := call()
+		if gemini.IsQuotaError(err) {
+			if serr := evo.SendMessage(chat, "⏳ El modelo está al límite de cuota. Dame unos segundos que lo reintento…"); serr != nil {
+				logJSON("warn", "no se pudo avisar de la cuota", map[string]any{"chat": chat, "error": serr.Error()})
+			}
+			time.Sleep(10 * time.Second)
+			out, err = call()
+		}
+		return out, err
+	}
+
+	// sortedSeries convierte un map de conteos en series ordenadas por valor (desc) para graficar.
+	sortedSeries := func(m map[string]int) ([]string, []float64) {
+		labels := make([]string, 0, len(m))
+		for k := range m {
+			labels = append(labels, k)
+		}
+		sort.Slice(labels, func(i, j int) bool { return m[labels[i]] > m[labels[j]] })
+		values := make([]float64, 0, len(labels))
+		for _, l := range labels {
+			values = append(values, float64(m[l]))
+		}
+		return labels, values
+	}
+
+	const xlsxMime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+	// sendReport manda el resumen ejecutivo en el formato pedido ("pdf" | "excel" | "grafico").
+	// Los números salen siempre de ExecutiveSummary/ReportSummary — los mismos de /api/reports/*.
+	sendReport := func(chat, format string) {
+		summary, err := st.ExecutiveSummary()
+		if err != nil {
+			logJSON("warn", "reporte: no se pudo calcular resumen", map[string]any{"error": err.Error()})
+			return
+		}
+		if err := evo.SendMessage(chat, report.Text(summary)); err != nil {
+			logJSON("warn", "reporte: no se pudo enviar texto", map[string]any{"chat": chat, "error": err.Error()})
+			return
+		}
+		switch format {
+		case "excel":
+			data, err := report.Excel(summary)
+			if err != nil {
+				logJSON("warn", "reporte: no se pudo generar Excel", map[string]any{"error": err.Error()})
+				return
+			}
+			if err := evo.SendDocument(chat, "reporte-todomark.xlsx", xlsxMime, "Reporte ejecutivo TodoMark (Excel)", data); err != nil {
+				logJSON("warn", "reporte: no se pudo enviar Excel", map[string]any{"chat": chat, "error": err.Error()})
+			}
+		case "grafico":
+			rep, err := st.ReportSummary()
+			if err != nil {
+				logJSON("warn", "reporte: no se pudo calcular el operativo", map[string]any{"error": err.Error()})
+				return
+			}
+			labels, values := sortedSeries(rep.ByStatus)
+			data, err := report.ChartPDF("Tickets por estado", "bar", labels, values)
+			if err != nil {
+				logJSON("warn", "reporte: no se pudo generar el gráfico", map[string]any{"error": err.Error()})
+				return
+			}
+			if err := evo.SendDocument(chat, "grafico-todomark.pdf", "application/pdf", "Tickets por estado", data); err != nil {
+				logJSON("warn", "reporte: no se pudo enviar el gráfico", map[string]any{"chat": chat, "error": err.Error()})
+			}
+		default:
+			data, err := report.PDF(summary)
+			if err != nil {
+				logJSON("warn", "reporte: no se pudo generar PDF", map[string]any{"error": err.Error()})
+				return
+			}
+			if err := evo.SendDocument(chat, "reporte-todomark.pdf", "application/pdf", "Reporte ejecutivo TodoMark", data); err != nil {
+				logJSON("warn", "reporte: no se pudo enviar PDF", map[string]any{"chat": chat, "error": err.Error()})
+			}
+		}
+	}
+
+	// answerOpenQuestion responde una pregunta abierta (texto o foto): grounding numérico con
+	// los datos reales (reportchat.BuildContext) + recuperación semántica sobre knowledge_chunks
+	// (esta última NO es fuente de cifras), y devuelve la salida en el formato que corresponda.
+	answerOpenQuestion := func(chat, question, mimeType string, media []byte) {
+		if !geminiClient.Configured() {
+			if err := evo.SendMessage(chat, "🤖 Todavía no tengo el asistente de IA configurado (falta la API key en /settings). Escribí *menu* para las opciones fijas."); err != nil {
+				logJSON("warn", "bot no pudo responder", map[string]any{"chat": chat, "error": err.Error()})
+			}
+			return
+		}
+		rep, err := st.ReportSummary()
+		if err != nil {
+			logJSON("warn", "pregunta abierta: no se pudo calcular el reporte operativo", map[string]any{"error": err.Error()})
+			return
+		}
+		exec, err := st.ExecutiveSummary()
+		if err != nil {
+			logJSON("warn", "pregunta abierta: no se pudo calcular el resumen ejecutivo", map[string]any{"error": err.Error()})
+			return
+		}
+		ctxJSON, err := reportchat.BuildContext(rep, exec)
+		if err != nil {
+			logJSON("warn", "pregunta abierta: no se pudo armar el contexto", map[string]any{"error": err.Error()})
+			return
+		}
+		sysPrompt := reportchat.SystemPromptWhatsApp()
+		if chunks, serr := st.SearchKnowledge(question, 3); serr == nil && len(chunks) > 0 {
+			sysPrompt += "\n\nContexto semántico recuperado de conversaciones previas (NO es fuente de cifras):\n- " + strings.Join(chunks, "\n- ")
+		}
+		prompt := reportchat.Prompt(ctxJSON, question)
+
+		raw, err := askGemini(chat, func() (string, error) {
+			if len(media) > 0 {
+				return geminiClient.ChatWithMedia(sysPrompt, prompt, mimeType, media)
+			}
+			return geminiClient.ChatWithSystem(sysPrompt, prompt)
+		})
+		if err != nil {
+			logJSON("warn", "pregunta abierta: el modelo falló", map[string]any{"chat": chat, "error": err.Error()})
+			if serr := evo.SendMessage(chat, "⚠️ No pude consultar al modelo ahora mismo. Probá de nuevo en un rato o escribí *menu*."); serr != nil {
+				logJSON("warn", "bot no pudo responder", map[string]any{"chat": chat, "error": serr.Error()})
+			}
+			return
+		}
+
+		env := reportchat.ParseEnvelope(raw)
+		if strings.TrimSpace(env.Reply) != "" {
+			if err := evo.SendMessage(chat, env.Reply); err != nil {
+				logJSON("warn", "bot no pudo responder", map[string]any{"chat": chat, "error": err.Error()})
+			}
+		}
+		lowered := strings.ToLower(question)
+		wantsExcel := strings.Contains(lowered, "excel") || strings.Contains(lowered, "xlsx")
+		if env.Table != nil && len(env.Table.Columns) > 0 {
+			if wantsExcel {
+				if data, xerr := report.TableXLSX("Datos", env.Table.Columns, env.Table.Rows); xerr != nil {
+					logJSON("warn", "pregunta abierta: no se pudo generar el Excel", map[string]any{"error": xerr.Error()})
+				} else if serr := evo.SendDocument(chat, "todomark.xlsx", xlsxMime, "Tabla solicitada", data); serr != nil {
+					logJSON("warn", "pregunta abierta: no se pudo enviar el Excel", map[string]any{"chat": chat, "error": serr.Error()})
+				}
+			} else if serr := evo.SendMessage(chat, report.TableText(env.Table.Columns, env.Table.Rows)); serr != nil {
+				logJSON("warn", "bot no pudo enviar la tabla", map[string]any{"chat": chat, "error": serr.Error()})
+			}
+		}
+		if env.Chart != nil && len(env.Chart.Datasets) > 0 {
+			ds := env.Chart.Datasets[0]
+			if data, perr := report.ChartPDF(ds.Label, env.Chart.Type, env.Chart.Labels, ds.Data); perr != nil {
+				logJSON("warn", "pregunta abierta: no se pudo generar el gráfico", map[string]any{"error": perr.Error()})
+			} else if serr := evo.SendDocument(chat, "grafico-todomark.pdf", "application/pdf", ds.Label, data); serr != nil {
+				logJSON("warn", "pregunta abierta: no se pudo enviar el gráfico", map[string]any{"chat": chat, "error": serr.Error()})
+			}
+		}
+		// Mismo criterio que /api/chat: el histórico alimenta la recuperación semántica futura.
+		_ = st.SaveKnowledgeChunk("whatsapp", "Usuario: "+question+"\nAsistente: "+env.Reply)
 	}
 
 	mux.HandleFunc("POST /webhook/evolution", func(w http.ResponseWriter, r *http.Request) {
@@ -904,41 +1062,74 @@ func main() {
 			}
 		}
 
-		if reply != "" {
-			// ya se armó la respuesta arriba (flujo de creación de ticket)
-		} else if hasAudio || (text == "" && (hasImage || ev.Data.Message.VideoMessage != nil || ev.Data.Message.DocumentMessage != nil)) {
-			kind := "archivo"
-			if hasAudio {
-				kind = "nota de voz"
+		// Entrada multimodal fuera del flujo de creación de ticket: la nota de voz se
+		// transcribe y se trata como texto; la foto viaja a Gemini junto con la pregunta.
+		var mediaMime string
+		var mediaBytes []byte
+		if reply == "" && (hasAudio || hasImage) {
+			media, merr := evo.GetMediaBase64(rawData)
+			if merr != nil {
+				logJSON("warn", "no se pudo descargar el adjunto entrante", map[string]any{"chat": chat, "error": merr.Error()})
+			} else if decoded, derr := base64.StdEncoding.DecodeString(media.Base64); derr != nil {
+				logJSON("warn", "adjunto entrante con base64 inválido", map[string]any{"chat": chat, "error": derr.Error()})
+			} else if hasAudio {
+				if !geminiClient.Configured() {
+					reply = "🎙 Recibí tu nota de voz, pero no tengo el transcriptor configurado. Escribime el mensaje en texto o *menu*."
+				} else if transcript, terr := askGemini(chat, func() (string, error) {
+					return geminiClient.Transcribe(decoded, media.MimeType)
+				}); terr != nil {
+					logJSON("warn", "no se pudo transcribir la nota de voz", map[string]any{"chat": chat, "error": terr.Error()})
+					reply = "⚠️ No pude transcribir tu nota de voz. Probá de nuevo o escribime en texto."
+				} else {
+					text = strings.TrimSpace(transcript)
+				}
+			} else {
+				mediaMime, mediaBytes = media.MimeType, decoded
 			}
-			reply = "🎙 Recibí tu " + kind + ", pero no puedo procesarlo acá. Escribe *incidente* para reportar un problema nuevo (ahí sí puedo guardar fotos/audio)."
+		}
+
+		if reply != "" {
+			// ya se armó la respuesta arriba (flujo de creación de ticket / adjunto fallido)
+		} else if len(mediaBytes) > 0 {
+			question := text
+			if question == "" {
+				question = "Te mandaron esta foto por WhatsApp. Describí qué muestra y decime si parece una incidencia a reportar."
+			}
+			answerOpenQuestion(chat, question, mediaMime, mediaBytes)
+			return
+		} else if text == "" && (ev.Data.Message.VideoMessage != nil || ev.Data.Message.DocumentMessage != nil) {
+			reply = "📎 Recibí tu archivo, pero solo puedo procesar fotos y notas de voz. Escribí *incidente* para adjuntarlo a un ticket, o *menu*."
 		} else {
 			opt := strings.ToLower(text)
-			if (len(tickets) == 0 && text != "") || isIncidentKeyword(opt) {
-				// Contacto nuevo (sin tickets) o alguien con tickets que quiere reportar otro
-				// incidente: arranca el flujo de creación en 2 pasos (describir → adjuntar).
+			// Clasificador de intención: primero reglas locales (edge, sin red ni cuota) y solo
+			// si hace falta el modelo — ver gemini.RouteIntent. Los dígitos son siempre menú.
+			isMenuDigit := len(opt) == 1 && opt[0] >= '1' && opt[0] <= '9'
+			fallback := gemini.IntentMenu
+			if len(tickets) == 0 {
+				fallback = gemini.IntentIncident // comportamiento previo: contacto nuevo → reportar
+			}
+			intent := gemini.IntentMenu
+			if text != "" && !isMenuDigit {
+				intent = geminiClient.RouteIntent(opt, fallback)
+			}
+			switch intent {
+			case gemini.IntentIncident:
+				// Flujo de creación en 2 pasos (describir → adjuntar).
 				reply = "🤖 *TodoMark Bot*\n\nContame qué pasó — describí el incidente en un mensaje."
 				botSessions.Store(chat, botSession{creating: "awaiting_description", expiry: time.Now().Add(10 * time.Minute)})
-			} else if opt == "reporte" || opt == "reportes" {
+			case gemini.IntentReport:
 				// Comando global: funciona en cualquier momento, no requiere estar en el menú.
 				// Mismos datos que GET /api/reports/executive — nada se calcula distinto acá.
-				summary, err := st.ExecutiveSummary()
-				if err != nil {
-					logJSON("warn", "reporte: no se pudo calcular resumen", map[string]any{"error": err.Error()})
-					return
+				format := "pdf"
+				if strings.Contains(opt, "excel") || strings.Contains(opt, "xlsx") {
+					format = "excel"
+				} else if strings.Contains(opt, "grafic") || strings.Contains(opt, "gráfic") {
+					format = "grafico"
 				}
-				if err := evo.SendMessage(chat, report.Text(summary)); err != nil {
-					logJSON("warn", "reporte: no se pudo enviar texto", map[string]any{"chat": chat, "error": err.Error()})
-					return
-				}
-				pdfBytes, err := report.PDF(summary)
-				if err != nil {
-					logJSON("warn", "reporte: no se pudo generar PDF", map[string]any{"error": err.Error()})
-					return
-				}
-				if err := evo.SendDocument(chat, "reporte-todomark.pdf", "application/pdf", "Reporte ejecutivo TodoMark", pdfBytes); err != nil {
-					logJSON("warn", "reporte: no se pudo enviar PDF", map[string]any{"chat": chat, "error": err.Error()})
-				}
+				sendReport(chat, format)
+				return
+			case gemini.IntentQuestion:
+				answerOpenQuestion(chat, text, "", nil)
 				return
 			}
 			if val, ok := botSessions.Load(chat); ok {
@@ -953,7 +1144,7 @@ func main() {
 						for _, t := range tickets {
 							if t.ID == s.ticket {
 								if opt == "menu" {
-									reply = menuText()
+									reply = menuText(true)
 								} else if a := answer(t, opt); a != "" {
 									reply = a
 								}
@@ -965,17 +1156,19 @@ func main() {
 						if n >= 1 && n <= len(tickets) {
 							s.ticket = tickets[n-1].ID
 							botSessions.Store(chat, s)
-							reply = "✅ *" + tickets[n-1].Title + "*\n\n" + menuText()
+							reply = "✅ *" + tickets[n-1].Title + "*\n\n" + menuText(true)
 						} else if opt == "menu" {
-							reply = menuText()
+							reply = menuText(false)
 						}
 					}
 				}
 			}
 			if reply == "" {
-				if len(tickets) == 1 {
+				if len(tickets) == 0 {
+					reply = menuText(false)
+				} else if len(tickets) == 1 {
 					botSessions.Store(chat, botSession{menu: true, ticket: tickets[0].ID, expiry: time.Now().Add(10 * time.Minute)})
-					reply = "🤖 *TodoMark Bot*\n\nTicket: *" + tickets[0].Title + "*\n\n" + menuText()
+					reply = "🤖 *TodoMark Bot*\n\nTicket: *" + tickets[0].Title + "*\n\n" + menuText(true)
 				} else if opt == "menu" || opt == "hola" {
 					var sb strings.Builder
 					sb.WriteString("🤖 *TodoMark Bot*\n\n¿Qué ticket consultas?\n")
@@ -1148,6 +1341,59 @@ func main() {
 			out["category"] = category
 		}
 		writeJSON(w, 200, out)
+	})
+
+	// --- Chat de reportería (web/ interno) — texto/tabla/gráfico grounded en datos reales.
+	// El usuario elige el modelo (provider); no hay embeddings/RAG todavía (Fase 23 propuesta,
+	// requiere otra ronda de decisión — ver PLAN.md). Contexto = ReportSummary+ExecutiveSummary,
+	// los mismos datos reales que ya usan /reports, /executive y Grafana.
+	mux.HandleFunc("POST /api/report-chat", func(w http.ResponseWriter, r *http.Request) {
+		var in struct {
+			Message  string `json:"message"`
+			Provider string `json:"provider"` // "gemini" | "deepseek"
+		}
+		if err := json.NewDecoder(r.Body).Decode(&in); err != nil || strings.TrimSpace(in.Message) == "" {
+			errJSON(w, 400, "JSON inválido: requiere 'message'")
+			return
+		}
+		var client interface {
+			ChatWithSystem(sysPrompt, message string) (string, error)
+			Configured() bool
+		}
+		switch in.Provider {
+		case "deepseek":
+			client = deepseekClient
+		default:
+			client = geminiClient
+		}
+		if !client.Configured() {
+			errJSON(w, 400, "El modelo elegido ("+in.Provider+") no tiene API key configurada en /settings")
+			return
+		}
+
+		report, err := st.ReportSummary()
+		if err != nil {
+			errJSON(w, 500, err.Error())
+			return
+		}
+		exec, err := st.ExecutiveSummary()
+		if err != nil {
+			errJSON(w, 500, err.Error())
+			return
+		}
+		ctxJSON, err := reportchat.BuildContext(report, exec)
+		if err != nil {
+			errJSON(w, 500, err.Error())
+			return
+		}
+
+		raw, err := client.ChatWithSystem(reportchat.SystemPrompt(), reportchat.Prompt(ctxJSON, strings.TrimSpace(in.Message)))
+		if err != nil {
+			logJSON("warn", "report-chat: el modelo falló", map[string]any{"provider": in.Provider, "error": err.Error()})
+			errJSON(w, 502, "No se pudo contactar al modelo elegido: "+err.Error())
+			return
+		}
+		writeJSON(w, 200, reportchat.ParseEnvelope(raw))
 	})
 
 	// --- Configuración de DeepSeek desde la UI (en vez de solo variable de entorno) ---

@@ -48,6 +48,12 @@ const IconDashboard = () => (
     <rect x="14" y="12" width="7" height="9" rx="1" /><rect x="3" y="16" width="7" height="5" rx="1" />
   </svg>
 );
+const IconChatReport = () => (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+    <path d="M8 10h8M8 13h5" />
+  </svg>
+);
 const IconSettings = () => (
   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="3" />
@@ -127,6 +133,9 @@ const Sidebar: React.FC = () => {
       </NavLink>
       <NavLink to="/dashboard-builder" className="sidebar-link" style={({ isActive }) => linkStyle(isActive)}>
         <IconDashboard /><span className="sidebar-label">Mi dashboard</span>
+      </NavLink>
+      <NavLink to="/report-chat" className="sidebar-link" style={({ isActive }) => linkStyle(isActive)}>
+        <IconChatReport /><span className="sidebar-label">Chat de reportería</span>
       </NavLink>
 
       <span className="sidebar-section-label" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.06em', color: 'var(--ink-faint)', textTransform: 'uppercase', padding: '16px 10px 8px' }}>Canales</span>

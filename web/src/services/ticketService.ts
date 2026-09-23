@@ -17,6 +17,9 @@ export type TicketFilters = { status?: TicketStatus; priority?: Priority; query?
 export type WeeklyBucket = { weekStart: string; created: number; closed: number };
 export type Building = { id: string; name: string; tier: string };
 export type Attachment = { id: string; ticketId: string; kind: 'photo' | 'audio'; mimeType: string; fileName: string; transcript: string | null; source: string; createdAt: string };
+export type ReportChatTable = { columns: string[]; rows: string[][] };
+export type ReportChatChart = { type: 'bar' | 'line' | 'doughnut'; labels: string[]; datasets: { label: string; data: number[] }[] };
+export type ReportChatReply = { reply: string; table: ReportChatTable | null; chart: ReportChatChart | null };
 export type BuildingStat = { buildingId: string; name: string; tier: string; count: number; avgResolutionHours: number | null };
 export type CategoryByBuilding = { buildingId: string; buildingName: string; category: string; count: number };
 export type ReportSummary = {
@@ -71,6 +74,8 @@ export const ticketService = {
     http<Ticket>('/api/tickets', { method: 'POST', body: JSON.stringify(data) }),
   getBuildings: () => http<Building[]>('/api/buildings'),
   getAttachments: (ticketId: string) => http<Attachment[]>(`/api/attachments?ticketId=${encodeURIComponent(ticketId)}`),
+  reportChat: (message: string, provider: 'gemini' | 'deepseek') =>
+    http<ReportChatReply>('/api/report-chat', { method: 'POST', body: JSON.stringify({ message, provider }) }),
   update: (id: string, data: Partial<Omit<Ticket, 'id' | 'createdAt' | 'history'>>) =>
     http<Ticket>(`/api/tickets/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string) => http<void>(`/api/tickets/${id}`, { method: 'DELETE' }),
